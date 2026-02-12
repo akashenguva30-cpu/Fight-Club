@@ -10,6 +10,8 @@ import {
   TaskStatus,
   ActivityEvent
 } from './types';
+import { useReports } from './services/ReportsContext';
+import { useVitals } from './services/VitalsContext';
 import { 
   USERS, 
   CURRENT_USER_KEY 
@@ -23,31 +25,14 @@ import {
   IconPlus, 
   IconSearch 
 } from './components/Icons';
+import Billing from './components/Billing';
+import { useAuth } from './services/AuthContext';
+import Login from './components/Login';
+import Signup from './components/Signup';
+import LabUpload from './components/LabUpload';
+import NurseVitals from './components/NurseVitals';
 import { KanbanBoard } from './components/KanbanBoard';
 import { PatientTimeline } from './components/PatientTimeline';
-
-const useAuth = () => {
-  const [currentUser, setCurrentUser] = useState<User | null>(() => {
-    try {
-      const saved = localStorage.getItem(CURRENT_USER_KEY);
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
-    }
-  });
-
-  const login = useCallback((user: User) => {
-    localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
-    setCurrentUser(user);
-  }, []);
-
-  const logout = useCallback(() => {
-    localStorage.removeItem(CURRENT_USER_KEY);
-    setCurrentUser(null);
-  }, []);
-
-  return { currentUser, login, logout };
-};
 
 const Sidebar = ({ user, onLogout }: { user: User; onLogout: () => void }) => {
   return (
@@ -64,6 +49,24 @@ const Sidebar = ({ user, onLogout }: { user: User; onLogout: () => void }) => {
           <IconClipboard className="w-5 h-5" />
           <span className="font-medium">Dashboard</span>
         </Link>
+        {user.role === 'ADMIN' && (
+          <Link to="/billing" className="flex items-center space-x-3 p-3 rounded-lg hover:bg-blue-50 text-gray-700 hover:text-blue-600 transition">
+            <IconClipboard className="w-5 h-5" />
+            <span className="font-medium">Billing</span>
+          </Link>
+        )}
+        {user.role === 'LAB' && (
+          <Link to="/lab-upload" className="flex items-center space-x-3 p-3 rounded-lg hover:bg-blue-50 text-gray-700 hover:text-blue-600 transition">
+            <IconFlask className="w-5 h-5" />
+            <span className="font-medium">Lab Uploads</span>
+          </Link>
+        )}
+        {user.role === 'NURSE' && (
+          <Link to="/nurse-vitals" className="flex items-center space-x-3 p-3 rounded-lg hover:bg-blue-50 text-gray-700 hover:text-blue-600 transition">
+            <IconClipboard className="w-5 h-5" />
+            <span className="font-medium">Vitals</span>
+          </Link>
+        )}
         <div className="pt-4 pb-2 px-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
           Departments
         </div>
@@ -93,40 +96,7 @@ const Sidebar = ({ user, onLogout }: { user: User; onLogout: () => void }) => {
   );
 };
 
-const LoginPage = ({ onLogin }: { onLogin: (u: User) => void }) => {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 p-6">
-      <div className="max-w-md w-full bg-white rounded-3xl shadow-xl p-8 border border-white">
-        <div className="text-center mb-10">
-          <div className="inline-flex items-center justify-center p-3 bg-blue-100 rounded-2xl text-blue-600 mb-4">
-            <IconStethoscope className="w-10 h-10" />
-          </div>
-          <h1 className="text-3xl font-bold text-gray-900">CareFlow</h1>
-          <p className="text-gray-500 mt-2">Sign in to coordinate patient care</p>
-        </div>
-        
-        <div className="space-y-3">
-          {USERS.map(u => (
-            <button
-              key={u.id}
-              onClick={() => onLogin(u)}
-              className="w-full flex items-center p-4 border border-gray-100 rounded-2xl hover:bg-blue-50 hover:border-blue-200 transition-all duration-200 group"
-            >
-              <img src={u.avatar} className="w-12 h-12 rounded-full mr-4 shadow-sm" alt="" />
-              <div className="text-left">
-                <div className="font-bold text-gray-800 group-hover:text-blue-700">{u.name}</div>
-                <div className="text-xs text-gray-400 font-medium uppercase tracking-widest">{u.role}</div>
-              </div>
-              <div className="ml-auto opacity-0 group-hover:opacity-100 text-blue-500 transition-opacity">
-                &rarr;
-              </div>
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-};
+
 
 const Dashboard = () => {
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -387,6 +357,11 @@ const PatientDetails = ({ user }: { user: User }) => {
     });
   }, [id, navigate]);
 
+  const { reports } = useReports();
+  const { getLatestByPatient } = useVitals();
+  const patientReports = reports.filter(r => r.patientId === id);
+  const latestVitals = getLatestByPatient(id ?? '');
+
   const handleAiInsight = async () => {
     if (!patient) return;
     setIsAiLoading(true);
@@ -517,19 +492,48 @@ const PatientDetails = ({ user }: { user: User }) => {
             </div>
             <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
               <h3 className="font-bold text-gray-800 mb-4">Recent Vitals</h3>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center text-sm"><span className="text-gray-500">BP</span><span className="font-bold text-gray-800">128/84</span></div>
-                <div className="flex justify-between items-center text-sm"><span className="text-gray-500">Heart Rate</span><span className="font-bold text-gray-800">72 bpm</span></div>
-                <div className="flex justify-between items-center text-sm"><span className="text-gray-500">Oxygen</span><span className="font-bold text-green-600">98% SpO2</span></div>
-              </div>
+              {latestVitals ? (
+                <div className="space-y-3 text-sm">
+                  <div className="flex justify-between items-center"><span className="text-gray-500">BP</span><span className="font-bold text-gray-800">{latestVitals.bp ?? '—'}</span></div>
+                  <div className="flex justify-between items-center"><span className="text-gray-500">Heart Rate</span><span className="font-bold text-gray-800">{latestVitals.heartRate ? `${latestVitals.heartRate} bpm` : '—'}</span></div>
+                  <div className="flex justify-between items-center"><span className="text-gray-500">Temperature</span><span className="font-bold text-gray-800">{latestVitals.temperature ? `${latestVitals.temperature} °C` : '—'}</span></div>
+                  <div className="flex justify-between items-center"><span className="text-gray-500">Oxygen</span><span className="font-bold text-green-600">{latestVitals.oxygen ? `${latestVitals.oxygen}%` : '—'}</span></div>
+                  <div className="text-xs text-gray-400">Updated {new Date(latestVitals.time).toLocaleString()}</div>
+                </div>
+              ) : (
+                <div className="text-sm text-gray-500">No vitals recorded yet.</div>
+              )}
             </div>
           </div>
         </div>
 
         <div className="lg:col-span-4 space-y-8">
-          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 min-h-[600px] overflow-hidden print:shadow-none print:border-none">
+          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 min-h-[200px] overflow-hidden print:shadow-none print:border-none">
+            <div className="p-6 border-b border-gray-100"><h2 className="text-xl font-bold text-gray-900">Lab Reports</h2></div>
+            <div className="overflow-y-auto max-h-[300px] scrollbar-hide p-4">
+              {patientReports.length === 0 ? (
+                <div className="text-sm text-gray-500">No reports uploaded for this patient.</div>
+              ) : (
+                <ul className="space-y-3">
+                  {patientReports.map(r => (
+                    <li key={r.id} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+                      <div>
+                        <div className="font-medium">{r.reportName}</div>
+                        <div className="text-xs text-gray-400">{new Date(r.date).toLocaleString()}</div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <a className="text-blue-600 hover:underline" href={r.fileUrl} target="_blank" rel="noreferrer">View</a>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+
+          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 min-h-[300px] overflow-hidden print:shadow-none print:border-none">
             <div className="p-6 border-b border-gray-100"><h2 className="text-xl font-bold text-gray-900">Clinical History</h2></div>
-            <div className="overflow-y-auto max-h-[700px] scrollbar-hide"><PatientTimeline activities={activities} /></div>
+            <div className="overflow-y-auto max-h-[340px] scrollbar-hide"><PatientTimeline activities={activities} /></div>
           </div>
         </div>
       </div>
@@ -573,8 +577,19 @@ const PatientDetails = ({ user }: { user: User }) => {
 };
 
 const App = () => {
-  const { currentUser, login, logout } = useAuth();
-  if (!currentUser) return <LoginPage onLogin={login} />;
+  const { user: currentUser, logout } = useAuth();
+  if (!currentUser) {
+    return (
+      <HashRouter>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route path="*" element={<Navigate to="/login" />} />
+        </Routes>
+      </HashRouter>
+    );
+  }
+
   return (
     <HashRouter>
       <div className="min-h-screen pl-64 bg-[#f8fafc] print:pl-0">
@@ -582,6 +597,9 @@ const App = () => {
         <main className="min-h-screen">
           <Routes>
             <Route path="/" element={<Dashboard />} />
+            <Route path="/billing" element={<Billing />} />
+            <Route path="/lab-upload" element={<LabUpload />} />
+            <Route path="/nurse-vitals" element={<NurseVitals />} />
             <Route path="/patient/:id" element={<PatientDetails user={currentUser} />} />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>

@@ -65,3 +65,21 @@ export interface ActivityEvent {
   timestamp: string;
   details?: string;
 }
+
+export interface BillServiceItem {
+  name: string;
+  amount: number;
+}
+
+export interface Bill {
+  id: string;
+  patientId: string;
+  patientName: string;
+  services: BillServiceItem[];
+  totalAmount: number;
+  paidAmount: number;
+  dueAmount: number;
+  status: 'Paid' | 'Pending' | 'Partial';
+  date: string;
+  notes?: string;
+}

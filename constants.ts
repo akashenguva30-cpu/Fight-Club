@@ -5,6 +5,7 @@ export const CURRENT_USER_KEY = 'careflow_user';
 export const PATIENTS_KEY = 'careflow_patients';
 export const TASKS_KEY = 'careflow_tasks';
 export const ACTIVITIES_KEY = 'careflow_activities';
+export const BILLING_KEY = 'careflow_bills';
 
 export const USERS: User[] = [
   { id: 'u1', name: 'Dr. Sarah Wilson', role: UserRole.DOCTOR, avatar: 'https://picsum.photos/seed/doc1/100/100' },
@@ -74,5 +75,39 @@ export const INITIAL_TASKS: CareTask[] = [
     createdBy: 'u1',
     createdAt: '2024-05-12T09:05:00Z',
     updatedAt: '2024-05-12T09:05:00Z',
+  }
+];
+
+import { Bill } from './types';
+
+export const INITIAL_BILLS: Bill[] = [
+  {
+    id: 'b1',
+    patientId: 'p1',
+    patientName: 'Robert J. Miller',
+    services: [
+      { name: 'ECG', amount: 150 },
+      { name: 'Trop-I', amount: 80 }
+    ],
+    totalAmount: 230,
+    paidAmount: 230,
+    dueAmount: 0,
+    status: 'Paid',
+    date: '2024-05-13T10:00:00Z',
+    notes: 'Insurance covered'
+  },
+  {
+    id: 'b2',
+    patientId: 'p2',
+    patientName: 'Elena Rodriguez',
+    services: [
+      { name: 'Appendectomy', amount: 1200 },
+      { name: 'Anesthesia', amount: 300 }
+    ],
+    totalAmount: 1500,
+    paidAmount: 500,
+    dueAmount: 1000,
+    status: 'Partial',
+    date: '2024-05-15T14:30:00Z'
   }
 ];

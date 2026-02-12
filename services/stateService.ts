@@ -14,6 +14,8 @@ import {
   TASKS_KEY, 
   ACTIVITIES_KEY 
 } from '../constants';
+import { BILLING_KEY, INITIAL_BILLS } from '../constants';
+import { Bill } from '../types';
 
 type Listener = () => void;
 
@@ -33,6 +35,9 @@ class StateService {
     }
     if (!localStorage.getItem(ACTIVITIES_KEY)) {
       localStorage.setItem(ACTIVITIES_KEY, JSON.stringify([]));
+    }
+    if (!localStorage.getItem(BILLING_KEY)) {
+      localStorage.setItem(BILLING_KEY, JSON.stringify(INITIAL_BILLS));
     }
   }
 
@@ -131,6 +136,52 @@ class StateService {
     return activities.sort((a, b) => 
       new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
     );
+  }
+
+  // Billing
+  getBills(): Bill[] {
+    const data = localStorage.getItem(BILLING_KEY);
+    return data ? JSON.parse(data) : [];
+  }
+
+  getBill(id: string): Bill | undefined {
+    return this.getBills().find(b => b.id === id);
+  }
+
+  addBill(bill: Omit<Bill, 'id' | 'dueAmount'>) {
+    const bills = this.getBills();
+    const newBill: Bill = {
+      ...bill,
+      id: `b-${Date.now()}`,
+      dueAmount: Math.max(0, bill.totalAmount - bill.paidAmount)
+    };
+    if (newBill.paidAmount >= newBill.totalAmount) newBill.status = 'Paid';
+    else if (newBill.paidAmount === 0) newBill.status = 'Pending';
+    else newBill.status = 'Partial';
+    localStorage.setItem(BILLING_KEY, JSON.stringify([...bills, newBill]));
+    this.notify();
+    return newBill;
+  }
+
+  updateBill(id: string, updates: Partial<Bill>) {
+    const bills = this.getBills();
+    const idx = bills.findIndex(b => b.id === id);
+    if (idx === -1) return;
+    const updated = { ...bills[idx], ...updates } as Bill;
+    updated.dueAmount = Math.max(0, updated.totalAmount - updated.paidAmount);
+    if (updated.paidAmount >= updated.totalAmount) updated.status = 'Paid';
+    else if (updated.paidAmount === 0) updated.status = 'Pending';
+    else updated.status = 'Partial';
+    bills[idx] = updated;
+    localStorage.setItem(BILLING_KEY, JSON.stringify(bills));
+    this.notify();
+    return updated;
+  }
+
+  deleteBill(id: string) {
+    const bills = this.getBills().filter(b => b.id !== id);
+    localStorage.setItem(BILLING_KEY, JSON.stringify(bills));
+    this.notify();
   }
 
   private logActivity(event: Omit<ActivityEvent, 'id' | 'timestamp'>) {
